@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Enquete WhatsApp (Offline)</title>
+<style>
+body { font-family: Arial; background:#ece5dd; display:flex; justify-content:center; align-items:center; min-height:100vh; margin:0; }
+.enquete-container { background:#fff; border-radius:15px; width:400px; padding:20px; box-shadow:0 2px 6px rgba(0,0,0,0.2);}
+.enquete-header { color:#075e54; font-weight:bold; margin-bottom:15px; font-size:18px;}
+.opcao { display:flex; align-items:center; background:#dcf8c6; padding:10px 15px; border-radius:25px; margin-bottom:10px; cursor:pointer;}
+.opcao:hover { background:#b3f0a1; }
+.opcao input[type="radio"] { display:none; }
+.checkmark { width:20px; height:20px; border:2px solid #25d366; border-radius:50%; margin-right:15px; position:relative;}
+.opcao input[type="radio"]:checked + .checkmark::after { content:''; width:10px; height:10px; background:#25d366; border-radius:50%; position:absolute; top:4px; left:4px;}
+input[type="submit"] { width:100%; padding:12px; background:#25d366; color:#fff; font-weight:bold; border:none; border-radius:25px; cursor:pointer;}
+input[type="submit"]:hover { background:#128c7e; }
+.resultado { margin-top:15px; }
+.barra { height:25px; background:#25d366; border-radius:15px; margin-bottom:10px; color:#fff; display:flex; align-items:center; justify-content:flex-end; padding-right:10px; font-weight:bold; transition:width 0.5s;}
+.barra-bg { background:#dcf8c6; border-radius:15px; width:100%; }
+.summary { background:#fff; border:1px solid #128c7e; border-radius:10px; padding:10px; margin-top:10px; color:#075e54;}
+</style>
+</head>
+<body>
+
+<div class="enquete-container">
+<form id="enqueteForm"></form>
+<div class="resultado" id="resultado"></div>
+<div class="summary" id="summary"></div>
+</div>
+
+<script>
+// 🔹 Perguntas editáveis
+const perguntas = [
+  {
+    titulo: "1️⃣ Qual é sua cor favorita?",
+    opcoes: ["Azul", "Verde", "Vermelho", "Amarelo"]
+  },
+  {
+    titulo: "2️⃣ Qual seu animal favorito?",
+    opcoes: ["Cachorro", "Gato", "Pássaro", "Peixe"]
+  }
+];
+
+const form = document.getElementById('enqueteForm');
+const resultadoDiv = document.getElementById('resultado');
+const summaryDiv = document.getElementById('summary');
+let votos = [];
+
+// Monta as perguntas
+perguntas.forEach((pergunta, i)=>{
+  const div = document.createElement('div');
+  div.className = "enquete-header";
+  div.textContent = pergunta.titulo;
+  form.appendChild(div);
+
+  pergunta.opcoes.forEach(op=>{
+    const label = document.createElement('label');
+    label.className = "opcao";
+    label.innerHTML = `<input type="radio" name="pergunta${i+1}" value="${op}" required>
+                       <span class="checkmark"></span> ${op}`;
+    form.appendChild(label);
+  });
+});
+
+// Botão de enviar
+const btn = document.createElement('input');
+btn.type = "submit";
+btn.value = "Enviar";
+form.appendChild(btn);
+
+// Salva voto localmente
+form.addEventListener('submit', e=>{
+  e.preventDefault();
+  const resposta = {};
+  new FormData(form).forEach((value, key)=> resposta[key]=value);
+  votos.push(resposta);
+  form.reset();
+  atualizarResultados();
+});
+
+function atualizarResultados(){
+  const totalPorPergunta = {};
+  const contagem = {};
+  votos.forEach(voto=>{
+    for(let pergunta in voto){
+      contagem[pergunta] = contagem[pergunta] || {};
+      contagem[pergunta][voto[pergunta]] = (contagem[pergunta][voto[pergunta]]||0)+1;
+      totalPorPergunta[pergunta] = (totalPorPergunta[pergunta]||0)+1;
+    }
+  });
+
+  resultadoDiv.innerHTML = '';
+  summaryDiv.innerHTML = '';
+  for(let pergunta in contagem){
+    resultadoDiv.innerHTML += `<div class="enquete-header">${pergunta}</div>`;
+    for(let opcao in contagem[pergunta]){
+      let percent = Math.round((contagem[pergunta][opcao]/totalPorPergunta[pergunta])*100);
+      resultadoDiv.innerHTML += `
+        <div>${opcao}</div>
+        <div class="barra-bg">
+          <div class="barra" style="width:${percent}%">${percent}%</div>
+        </div>
+      `;
+      summaryDiv.innerHTML += `${pergunta} → ${opcao}: ${percent}%<br>`;
+    }
+  }
+}
+</script>
+</body>
+</html>
