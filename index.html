@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Enquete WhatsApp (Offline)</title>
+<title>Enquete WhatsApp Firebase</title>
 <style>
 body { font-family: Arial; background:#ece5dd; display:flex; justify-content:center; align-items:center; min-height:100vh; margin:0; }
 .enquete-container { background:#fff; border-radius:15px; width:400px; padding:20px; box-shadow:0 2px 6px rgba(0,0,0,0.2);}
@@ -28,8 +28,11 @@ input[type="submit"]:hover { background:#128c7e; }
 <div class="summary" id="summary"></div>
 </div>
 
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
-// 🔹 Perguntas editáveis
+// 🔹 1. CONFIGURE SUAS PERGUNTAS AQUI
 const perguntas = [
   {
     titulo: "1️⃣ Qual é sua cor favorita?",
@@ -41,12 +44,24 @@ const perguntas = [
   }
 ];
 
+// 🔹 2. CONFIG DO FIREBASE (substitua pelos seus dados)
+const firebaseConfig = {
+  apiKey: "SUA_API_KEY",
+  authDomain: "SEU_PROJETO.firebaseapp.com",
+  databaseURL: "https://SEU_PROJETO.firebaseio.com",
+  projectId: "SEU_PROJETO",
+  storageBucket: "SEU_PROJETO.appspot.com",
+  messagingSenderId: "SEU_SENDER_ID",
+  appId: "SEU_APP_ID"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
 const form = document.getElementById('enqueteForm');
 const resultadoDiv = document.getElementById('resultado');
 const summaryDiv = document.getElementById('summary');
-let votos = [];
 
-// Monta as perguntas
+// 🔹 3. Monta dinamicamente a enquete
 perguntas.forEach((pergunta, i)=>{
   const div = document.createElement('div');
   div.className = "enquete-header";
@@ -62,49 +77,56 @@ perguntas.forEach((pergunta, i)=>{
   });
 });
 
-// Botão de enviar
 const btn = document.createElement('input');
 btn.type = "submit";
 btn.value = "Enviar";
 form.appendChild(btn);
 
-// Salva voto localmente
+// 🔹 4. Salva voto no Firebase
 form.addEventListener('submit', e=>{
   e.preventDefault();
-  const resposta = {};
-  new FormData(form).forEach((value, key)=> resposta[key]=value);
-  votos.push(resposta);
-  form.reset();
-  atualizarResultados();
+  const votos = {};
+  new FormData(form).forEach((value, key)=> votos[key]=value);
+  const uid = Date.now() + Math.random().toString(36).substr(2,5);
+  db.ref('votos/'+uid).set(votos).then(()=>{
+    alert("Voto registrado!");
+    form.style.display='none';
+    atualizarResultados();
+  });
 });
 
+// 🔹 5. Resultados em tempo real
 function atualizarResultados(){
-  const totalPorPergunta = {};
-  const contagem = {};
-  votos.forEach(voto=>{
-    for(let pergunta in voto){
-      contagem[pergunta] = contagem[pergunta] || {};
-      contagem[pergunta][voto[pergunta]] = (contagem[pergunta][voto[pergunta]]||0)+1;
-      totalPorPergunta[pergunta] = (totalPorPergunta[pergunta]||0)+1;
+  db.ref('votos').on('value', snapshot=>{
+    const data = snapshot.val() || {};
+    const totalPorPergunta = {};
+    const contagem = {};
+    Object.values(data).forEach(voto=>{
+      for(let pergunta in voto){
+        contagem[pergunta] = contagem[pergunta] || {};
+        contagem[pergunta][voto[pergunta]] = (contagem[pergunta][voto[pergunta]]||0)+1;
+        totalPorPergunta[pergunta] = (totalPorPergunta[pergunta]||0)+1;
+      }
+    });
+
+    resultadoDiv.innerHTML = '';
+    summaryDiv.innerHTML = '';
+    for(let pergunta in contagem){
+      resultadoDiv.innerHTML += `<div class="enquete-header">${pergunta}</div>`;
+      for(let opcao in contagem[pergunta]){
+        let percent = Math.round((contagem[pergunta][opcao]/totalPorPergunta[pergunta])*100);
+        resultadoDiv.innerHTML += `
+          <div>${opcao}</div>
+          <div class="barra-bg">
+            <div class="barra" style="width:${percent}%">${percent}%</div>
+          </div>
+        `;
+        summaryDiv.innerHTML += `${pergunta} → ${opcao}: ${percent}%<br>`;
+      }
     }
   });
-
-  resultadoDiv.innerHTML = '';
-  summaryDiv.innerHTML = '';
-  for(let pergunta in contagem){
-    resultadoDiv.innerHTML += `<div class="enquete-header">${pergunta}</div>`;
-    for(let opcao in contagem[pergunta]){
-      let percent = Math.round((contagem[pergunta][opcao]/totalPorPergunta[pergunta])*100);
-      resultadoDiv.innerHTML += `
-        <div>${opcao}</div>
-        <div class="barra-bg">
-          <div class="barra" style="width:${percent}%">${percent}%</div>
-        </div>
-      `;
-      summaryDiv.innerHTML += `${pergunta} → ${opcao}: ${percent}%<br>`;
-    }
-  }
 }
+atualizarResultados();
 </script>
 </body>
 </html>
